@@ -9,6 +9,12 @@ exports.getUsers = async (req, res) => {
     const search = req.query.search || '';
 
     const whereClause = {};
+    
+    // Filter by campus if campus_admin
+    if (req.user.role === 'campus_admin' && req.user.campusId) {
+      whereClause.campusId = req.user.campusId;
+    }
+
     if (search) {
       whereClause[Op.or] = [
         { name: { [Op.like]: `%${search}%` } },
@@ -38,12 +44,68 @@ exports.getUsers = async (req, res) => {
 };
 
 exports.createUser = async (req, res) => {
-  // This logic is similar to register in authController but for admin use
-  // Redirecting to authController.register logic or implementing separately
-  // For MVP, we can reuse authController logic or separate if admin needs more fields
-  // Implementing a basic version here
-  const authController = require('./authController');
-  return authController.register(req, res);
+  try {
+    const { name, email, password, role, studentClass, studentIdNumber, nfcCardId, cardPin, campusId: bodyCampusId } = req.body;
+    const bcrypt = require('bcrypt');
+    const { User, Wallet, Campus, AuditLog } = require('../models');
+
+    let campusId = bodyCampusId;
+
+    // If campus_admin, enforce their campusId and check capacity
+    if (req.user.role === 'campus_admin') {
+        campusId = req.user.campusId;
+        if (!campusId) return res.status(400).json({ message: 'No campus assigned to admin' });
+        
+        const campus = await Campus.findByPk(campusId);
+        if (!campus) return res.status(400).json({ message: 'Campus not found' });
+
+        const currentCount = await User.count({ where: { campusId } });
+        if (currentCount >= campus.capacity) {
+             return res.status(400).json({ message: 'Campus capacity reached' });
+        }
+    }
+
+    // Check if user exists
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    let hashedPin = null;
+    if (cardPin) {
+      hashedPin = await bcrypt.hash(cardPin, 10);
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      campusId,
+      studentClass,
+      studentIdNumber,
+      nfcCardId,
+      cardPin: hashedPin
+    });
+
+    await Wallet.create({ userId: user.id, balance: 0 });
+
+    // Create Audit Log
+    await AuditLog.create({
+      userId: req.user.id,
+      action: 'CREATE_USER',
+      targetId: user.id,
+      targetModel: 'User',
+      details: { role, campusId, createdBy: req.user.role }
+    });
+
+    res.status(201).json({ message: 'User created successfully', userId: user.id });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
 };
 
 exports.resetPin = async (req, res) => {

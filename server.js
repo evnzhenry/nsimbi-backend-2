@@ -13,6 +13,8 @@ const walletRoutes = require('./routes/walletRoutes');
 const userRoutes = require('./routes/userRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
+const updateRoutes = require('./routes/updateRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -41,6 +43,8 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/admin/user', userRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/updates', updateRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Database Sync and Server Start
 // Note: We use { force: false } because seed.js already handles table creation.
@@ -49,21 +53,36 @@ sequelize.sync({ force: false })
   .then(async () => {
     console.log('Database connected and synced');
     try {
-      // Ensure default admin
+      // Ensure default super admin
       const adminEmail = 'admin@nsimbi.com';
-      const existingAdmin = await User.findOne({ where: { email: adminEmail, role: 'admin' } });
-      if (!existingAdmin) {
+      let admin = await User.findOne({ where: { email: adminEmail } });
+      
+      if (!admin) {
         const passwordHash = await bcrypt.hash('password123', 10);
-        const admin = await User.create({
-          name: 'Admin User',
+        admin = await User.create({
+          name: 'Super Admin',
           email: adminEmail,
           password: passwordHash,
-          role: 'admin',
+          role: 'super_admin',
         });
         await Wallet.create({ userId: admin.id, balance: 0 });
-        console.log('Default admin ensured:', adminEmail);
+        console.log('Default super_admin created:', adminEmail);
+      } else if (admin.role !== 'super_admin') {
+        // Upgrade existing admin to super_admin
+        admin.role = 'super_admin';
+        await admin.save();
+        console.log('Existing admin upgraded to super_admin:', adminEmail);
       } else {
-        console.log('Default admin exists:', adminEmail);
+        console.log('Default super_admin exists:', adminEmail);
+      }
+
+      // Migrate any remaining 'admin' users to 'campus_admin'
+      const [updatedRows] = await User.update(
+        { role: 'campus_admin' },
+        { where: { role: 'admin' } }
+      );
+      if (updatedRows > 0) {
+        console.log(`Migrated ${updatedRows} legacy 'admin' users to 'campus_admin'`);
       }
 
       // Ensure default update info (for testing)

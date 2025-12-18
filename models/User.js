@@ -24,9 +24,17 @@ const User = sequelize.define('User', {
     allowNull: false,
   },
   role: {
-    type: DataTypes.ENUM('admin', 'parent', 'student', 'merchant'),
+    type: DataTypes.ENUM('super_admin', 'campus_admin', 'parent', 'student', 'merchant'),
     allowNull: false,
     defaultValue: 'parent',
+  },
+  campusId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  status: {
+    type: DataTypes.ENUM('active', 'inactive', 'suspended'),
+    defaultValue: 'active',
   },
   nfcCardId: {
     type: DataTypes.STRING,

@@ -3,6 +3,10 @@ const User = require('./User');
 const Wallet = require('./Wallet');
 const Transaction = require('./Transaction');
 const Item = require('./Item');
+const AppVersion = require('./AppVersion');
+const Campus = require('./Campus');
+const AuditLog = require('./AuditLog');
+const SystemConfig = require('./SystemConfig');
 
 // User <-> Wallet
 User.hasOne(Wallet, { foreignKey: 'userId' });

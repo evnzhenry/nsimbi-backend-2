@@ -153,7 +153,7 @@ exports.login = async (req, res) => {
 
     // Generate Token
     const token = jwt.sign(
-      { userId: user.id, role: user.role },
+      { userId: user.id, role: user.role, campusId: user.campusId },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
@@ -165,6 +165,7 @@ exports.login = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        campusId: user.campusId,
       },
     });
   } catch (error) {
