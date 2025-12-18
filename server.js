@@ -4,7 +4,8 @@ const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
-const { sequelize } = require('./models');
+const { sequelize, User, Wallet } = require('./models');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
@@ -44,11 +45,32 @@ app.use('/api/inventory', inventoryRoutes);
 // Database Sync and Server Start
 // Note: We use { force: false } because seed.js already handles table creation.
 // Avoid { alter: true } with SQLite as it can cause foreign key constraint errors during development.
-sequelize.sync({ force: false }).then(() => {
-  console.log('Database connected and synced');
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+sequelize.sync({ force: false })
+  .then(async () => {
+    console.log('Database connected and synced');
+    try {
+      const adminEmail = 'admin@nsimbi.com';
+      const existingAdmin = await User.findOne({ where: { email: adminEmail, role: 'admin' } });
+      if (!existingAdmin) {
+        const passwordHash = await bcrypt.hash('password123', 10);
+        const admin = await User.create({
+          name: 'Admin User',
+          email: adminEmail,
+          password: passwordHash,
+          role: 'admin',
+        });
+        await Wallet.create({ userId: admin.id, balance: 0 });
+        console.log('Default admin ensured:', adminEmail);
+      } else {
+        console.log('Default admin exists:', adminEmail);
+      }
+    } catch (e) {
+      console.error('Failed to ensure default admin:', e);
+    }
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('Database connection failed:', err);
   });
-}).catch(err => {
-  console.error('Database connection failed:', err);
-});
