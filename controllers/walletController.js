@@ -60,15 +60,18 @@ exports.topUp = async (req, res) => {
 
 exports.lookupStudent = async (req, res) => {
   try {
-    const { studentIdNumber } = req.body;
+    let { studentIdNumber } = req.body;
     
     if (!studentIdNumber) {
       return res.status(400).json({ message: 'Student ID Number is required' });
     }
 
+    // Trim whitespace to avoid common copy-paste errors
+    studentIdNumber = studentIdNumber.trim();
+
     const student = await User.findOne({ 
       where: { studentIdNumber },
-      attributes: ['id', 'name', 'studentIdNumber', 'nfcCardId']
+      attributes: ['id', 'name', 'studentIdNumber', 'nfcCardId', 'studentClass']
     });
 
     if (!student) {

@@ -4,7 +4,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
-const { sequelize, User, Wallet } = require('./models');
+const { sequelize, User, Wallet, AppVersion } = require('./models');
 const bcrypt = require('bcrypt');
 require('dotenv').config();
 
@@ -49,6 +49,7 @@ sequelize.sync({ force: false })
   .then(async () => {
     console.log('Database connected and synced');
     try {
+      // Ensure default admin
       const adminEmail = 'admin@nsimbi.com';
       const existingAdmin = await User.findOne({ where: { email: adminEmail, role: 'admin' } });
       if (!existingAdmin) {
@@ -64,8 +65,23 @@ sequelize.sync({ force: false })
       } else {
         console.log('Default admin exists:', adminEmail);
       }
+
+      // Ensure default update info (for testing)
+      const existingUpdate = await AppVersion.findOne({ where: { platform: 'android' } });
+      if (!existingUpdate) {
+        await AppVersion.create({
+          platform: 'android',
+          version: '1.0.1',
+          buildNumber: 100, // High number to force update prompt for testing
+          forceUpdate: false,
+          title: 'New Update Available',
+          message: 'We have added new features and bug fixes. Please update your app.',
+          storeUrl: 'https://play.google.com/store/apps/details?id=com.nsimbi.mobile'
+        });
+        console.log('Default android update info created');
+      }
     } catch (e) {
-      console.error('Failed to ensure default admin:', e);
+      console.error('Failed to ensure default data:', e);
     }
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

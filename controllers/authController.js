@@ -92,7 +92,10 @@ exports.googleAuth = async (req, res) => {
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role, nfcCardId, parentId, studentClass, studentIdNumber, cardPin } = req.body;
+    let { name, email, password, role, nfcCardId, parentId, studentClass, studentIdNumber, cardPin } = req.body;
+
+    if (studentIdNumber) studentIdNumber = studentIdNumber.trim();
+    if (email) email = email.trim().toLowerCase();
 
     // Check if user exists
     const existingUser = await User.findOne({ where: { email } });

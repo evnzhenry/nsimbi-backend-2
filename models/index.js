@@ -29,4 +29,5 @@ module.exports = {
   Wallet,
   Transaction,
   Item,
+  AppVersion,
 };
